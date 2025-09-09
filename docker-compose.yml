@@ -1,0 +1,43 @@
+#docker-compose.yml
+services:
+  avatar-server:
+    build:
+      context: .                          
+      dockerfile: avatar-server/backend/Dockerfile
+    container_name: avatar-server
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - TTS_URL=http://tts-server:5002
+      - ALLOWED_ORIGINS=*
+      - DB_PATH=/data/chat.db
+    volumes:
+      - ./data:/data
+    depends_on:
+      - ollama
+      - tts-server
+
+  tts-server:
+    build:
+      context: ./tts-server
+      dockerfile: Dockerfile
+    container_name: tts-server
+    ports:
+      - "5002:5002"
+    environment:
+      - TTS_MODEL=tts_models/multilingual/multi-dataset/your_tts
+    volumes:
+      - ./tts-server/tts-cache:/app/tts-cache
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    entrypoint: ["/usr/bin/bash","-lc","ollama serve"]
+
+volumes:
+  ollama:

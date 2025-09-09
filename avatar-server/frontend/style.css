@@ -1,0 +1,15 @@
+html, body, #app { height: 100%; margin: 0; background: #0c0f14; color: #eee; font-family: system-ui, sans-serif; }
+#scene { width: 100%; height: 100%; display: block; position: absolute; top: 0; left: 0; }
+.ui { position: absolute; inset: auto 0 0 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(6px); padding: 10px; display: grid; gap: 8px; }
+.controls { display: flex; gap: 8px; align-items: center; }
+.chat { display: grid; grid-template-rows: 1fr auto; height: 30vh; }
+#history { overflow-y: auto; padding: 6px; }
+.message { margin: 6px 0; }
+.message.user { text-align: right; }
+.message.assistant { text-align: left; opacity: 0.95; }
+.input { display: flex; gap: 6px; }
+button, select, input { background: #1a2230; color: #eee; border: 1px solid #2a3445; border-radius: 6px; padding: 8px 10px; }
+button:hover { background: #263248; cursor: pointer; }
+@media (max-width: 768px) {
+  .chat { height: 40vh; }
+}

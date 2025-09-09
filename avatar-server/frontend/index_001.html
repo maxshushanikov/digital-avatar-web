@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Digital Avatar</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene"></canvas>
+    <div class="ui">
+      <div class="controls">
+        <button id="micBtn">🎙️ Говорить</button>
+        <button id="callBtn">📹 Видеозвонок</button>
+        <button id="webcamBtn">📷 Веб-камера</button>
+        <select id="emojiSelect">
+          <option value="">Эмодзи</option>
+          <option value="😊">😊</option>
+          <option value="😮">😮</option>
+          <option value="😡">😡</option>
+          <option value="😉">😉</option>
+          <option value="👍">👍</option>
+        </select>
+      </div>
+      <div class="chat">
+        <div id="history"></div>
+        <div class="input">
+          <input id="textInput" placeholder="Скажи или напиши..." />
+          <button id="sendBtn">Отправить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nur noch ein Modul-Entry-Point -->
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
