@@ -1,11 +1,17 @@
-# tts-server/Dockerfile
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsndfile1 \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Предзагружаем модель Silero при сборке (теперь с omegaconf)
+RUN python -c "import torch; torch.hub.load('snakers4/silero-models', 'silero_tts', language='ru', speaker='ru_v3', trust_repo=True)"
 
 COPY server.py .
 RUN mkdir -p /app/tts-cache

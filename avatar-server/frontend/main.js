@@ -54,7 +54,7 @@ async function sendMessage(text, sessionId, avatarCtrl) {
       body: JSON.stringify({
         session_id: sessionId,
         message: text,
-        system_prompt: 'Ты дружелюбный ассистент. Отвечай на русском.',
+        system_prompt: 'ТЫ ДОЛЖЕН ОТВЕЧАТЬ ТОЛЬКО НА РУССКОМ ЯЗЫКЕ! НИКОГДА не используй английские слова или фразы в ответах. Если тебя спрашивают на английском, ответь: "Извините, я могу отвечать только на русском языке". Твои ответы должны быть краткими и понятными. Отвечай только на русском языке, без исключений.',
         temperature: 0.6,
         model: 'llama3'
       })
@@ -77,7 +77,9 @@ async function sendMessage(text, sessionId, avatarCtrl) {
 
     if (data.audio_url) {
       try {
-        const { audio, analyser } = await playAudio(data.audio_url);
+        // Добавляем базовый URL для аудио, если нужно
+        const audioUrl = data.audio_url.startsWith('http') ? data.audio_url : `${window.location.origin}${data.audio_url}`;
+        const { audio, analyser } = await playAudio(audioUrl);
         avatarCtrl.lipSyncWithAnalyser(analyser);
         await audio.play();
       } catch (audioError) {

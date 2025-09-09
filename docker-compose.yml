@@ -1,49 +1,50 @@
-#docker-compose.yml
 services:
   avatar-server:
     build:
-      context: .                          
+      context: .
       dockerfile: avatar-server/backend/Dockerfile
     container_name: avatar-server
     ports:
-      - "8000:8000"
+      - '8000:8000'
     environment:
-      - OLLAMA_URL=http://ollama:11434
-      - TTS_URL=http://tts-server:5002
+      - 'OLLAMA_URL=http://ollama:11434'
+      - 'TTS_URL=http://tts-server:5002'
       - ALLOWED_ORIGINS=*
       - DB_PATH=/data/chat.db
     volumes:
-      - ./data:/data
+      - './data:/data'
     depends_on:
       - ollama
       - tts-server
-
   tts-server:
     build:
       context: ./tts-server
       dockerfile: Dockerfile
     container_name: tts-server
     ports:
-      - "5002:5002"
-    environment:
-      - TTS_MODEL=tts_models/multilingual/multi-dataset/your_tts
+      - '5002:5002'
     volumes:
-      - ./tts-server/tts-cache:/app/tts-cache
-
+      - './tts-server/tts-cache:/app/tts-cache'
   ollama:
-    image: ollama/ollama:latest
+    image: 'ollama/ollama:latest'
     container_name: ollama
     ports:
-      - "11434:11434"
+      - '11434:11434'
     volumes:
-      - ollama:/root/.ollama
-    entrypoint: ["/usr/bin/bash","-lc","ollama serve"]
+      - 'ollama:/root/.ollama'
+    entrypoint:
+      - /usr/bin/bash
+      - '-lc'
+      - ollama serve
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test:
+        - CMD
+        - curl
+        - '-f'
+        - 'http://localhost:11434/api/tags'
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
-
 volumes:
-  ollama:
+  ollama: null
