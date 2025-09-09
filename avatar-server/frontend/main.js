@@ -59,17 +59,35 @@ async function sendMessage(text, sessionId, avatarCtrl) {
         model: 'llama3'
       })
     });
+
+    // Проверяем статус ответа
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errorText}`);
+    }
+
     const data = await res.json();
+    
+    // Проверяем, что ответ содержит текст
+    if (!data.text) {
+      throw new Error('Пустой ответ от сервера');
+    }
+    
     addMsg('assistant', data.text);
 
     if (data.audio_url) {
-      const { audio, analyser } = await playAudio(data.audio_url);
-      avatarCtrl.lipSyncWithAnalyser(analyser);
-      await audio.play();
+      try {
+        const { audio, analyser } = await playAudio(data.audio_url);
+        avatarCtrl.lipSyncWithAnalyser(analyser);
+        await audio.play();
+      } catch (audioError) {
+        console.error('Ошибка воспроизведения аудио:', audioError);
+        showChatMessage('❌ Ошибка воспроизведения аудио', true);
+      }
     }
   } catch (err) {
     console.error('Ошибка при отправке сообщения:', err);
-    showChatMessage(`Ошибка отправки: ${err.message}`, true);
+    showChatMessage(`❌ Ошибка отправки: ${err.message}`, true);
   }
 }
 

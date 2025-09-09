@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import List, Optional
 
 import httpx
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
@@ -74,86 +75,77 @@ class ChatResponse(BaseModel):
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
-    # Build prompt with short history
-    history = get_history(req.session_id, limit=12)
-    messages = []
-    if req.system_prompt:
-        messages.append({"role": "system", "content": req.system_prompt})
-    for h in history:
-        messages.append({"role": h["role"], "content": h["content"]})
-    messages.append({"role": "user", "content": req.message})
-
-    # Save user message
-    save_message(req.session_id, "user", req.message)
-
-    # Call Ollama
-    payload = {
-        "model": req.model,
-        "prompt": build_ollama_prompt(messages),
-        "options": {"temperature": req.temperature}
-    }
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            r = await client.post(f"{OLLAMA_URL}/api/generate", json=payload)
-            print("Ollama status:", r.status_code)
-            print("Ollama raw text:", r.text[:500])  # первые 500 символов
-            r.raise_for_status()
-            text = ""
-            for line in r.text.splitlines():
-                try:
-                    obj = json.loads(line)
-                    text += obj.get("response", "")
-                except json.JSONDecodeError as e:
-                    print("JSON decode error:", e, "line:", line)
-    except Exception as e:
-        print("Ошибка при обращении к Ollama:", repr(e))
-        raise
+        # Build prompt with short history
+        history = get_history(req.session_id, limit=12)
+        messages = []
+        if req.system_prompt:
+            messages.append({"role": "system", "content": req.system_prompt})
+        for h in history:
+            messages.append({"role": h["role"], "content": h["content"]})
+        messages.append({"role": "user", "content": req.message})
 
-    assistant_text = text.strip()
-    save_message(req.session_id, "assistant", assistant_text)
+        # Save user message
+        save_message(req.session_id, "user", req.message)
 
-    # Ask TTS server to synthesize and return URL
-    # tts_payload = {"text": assistant_text, "voice": "speaker_0", "lang": "ru"}
-    tts_payload = {"text": assistant_text, "lang": "ru", "speaker_wav": None}
-    audio_url = None
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            rr = await client.post(f"{TTS_URL}/tts", json=tts_payload)
-            rr.raise_for_status()
-            audio_url = rr.json().get("audio_url")
-    except Exception:
+        # Call Ollama with modern chat API
+        payload = {
+            "model": req.model,
+            "messages": messages,
+            "options": {"temperature": req.temperature},
+            "stream": False  # Explicitly disable streaming
+        }
+        
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                r = await client.post(f"{OLLAMA_URL}/api/chat", json=payload)
+                print("Ollama status:", r.status_code)
+                print("Ollama response text:", r.text[:500])  # First 500 chars for debugging
+                r.raise_for_status()
+                
+                # Parse JSON response
+                response_data = r.json()
+                assistant_text = response_data["message"]["content"].strip()
+                
+        except httpx.RequestError as e:
+            print(f"Request error to Ollama: {e}")
+            raise HTTPException(status_code=503, detail=f"Ollama service unavailable: {str(e)}")
+        except httpx.HTTPStatusError as e:
+            print(f"Ollama HTTP error: {e}")
+            raise HTTPException(status_code=e.response.status_code, detail=f"Ollama error: {str(e)}")
+        except KeyError as e:
+            print(f"Invalid response format from Ollama: {e}")
+            raise HTTPException(status_code=500, detail="Invalid response format from Ollama")
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error from Ollama: {e}")
+            print(f"Raw response: {r.text[:500]}")
+            raise HTTPException(status_code=500, detail="Invalid JSON response from Ollama")
+        except Exception as e:
+            print(f"Unexpected error with Ollama: {e}")
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+        save_message(req.session_id, "assistant", assistant_text)
+
+        # Ask TTS server to synthesize and return URL
+        tts_payload = {"text": assistant_text, "lang": "ru", "speaker_wav": None}
         audio_url = None
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                rr = await client.post(f"{TTS_URL}/tts", json=tts_payload)
+                rr.raise_for_status()
+                audio_url = rr.json().get("audio_url")
+        except Exception as e:
+            print(f"TTS service error: {e}")
+            # We don't raise an error here, just continue without audio
 
-    return ChatResponse(text=assistant_text, history=get_history(req.session_id), audio_url=audio_url)
-
-"""def build_ollama_prompt(messages):
-    # Simple chat template
-    lines = []
-    for m in messages:
-        role = m["role"]
-        content = m["content"]
-        if role == "system":
-            lines.append(f"<<SYS>>\n{content}\n<</SYS>>")
-        elif role == "user":
-            lines.append(f"User: {content}")
-        else:
-            lines.append(f"Assistant: {content}")
-    lines.append("Assistant:")
-    return "\n".join(lines)"""
-    
-def build_ollama_prompt(messages):
-    prompt = ""
-    for m in messages:
-        role = m["role"]
-        content = m["content"]
-        if role == "system":
-            prompt += f"<|start_header_id|>system<|end_header_id|>\n\n{content}<|eot_id|>"
-        elif role == "user":
-            prompt += f"<|start_header_id|>user<|end_header_id|>\n\n{content}<|eot_id|>"
-        else:
-            prompt += f"<|start_header_id|>assistant<|end_header_id|>\n\n{content}<|eot_id|>"
-    prompt += "<|start_header_id|>assistant<|end_header_id|>\n\n"
-    return prompt
+        return ChatResponse(text=assistant_text, history=get_history(req.session_id), audio_url=audio_url)
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        print(f"Unexpected error in chat endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # WebSocket signaling for WebRTC
 class ConnectionManager:
