@@ -1,3 +1,4 @@
+// digital_avatar/avatar-server/frontend/modules/ui.js
 import { isMobile } from './utils.js';
 
 export function setupUI({ onSubmit, onMicText, onEmoji, onWebcamToggle, onCallToggle }) {

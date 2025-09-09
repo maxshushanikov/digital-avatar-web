@@ -1,6 +1,7 @@
+// digital_avatar/avatar-server/frontend/main.js
 import { initScene } from './modules/scene.js';
 import { setupUI } from './modules/ui.js';
-import { playAudio } from './modules/audio.js';
+import { playAudio, safePlay, setupAudioEndHandler } from './modules/audio.js';
 import { AvatarController } from './modules/avatar.js';
 import { isMobile } from './modules/utils.js';
 
@@ -79,9 +80,23 @@ async function sendMessage(text, sessionId, avatarCtrl) {
       try {
         // Добавляем базовый URL для аудио, если нужно
         const audioUrl = data.audio_url.startsWith('http') ? data.audio_url : `${window.location.origin}${data.audio_url}`;
-        const { audio, analyser } = await playAudio(audioUrl);
+        
+        // Используем улучшенный playAudio
+        const { audio, analyser, cleanup } = await playAudio(audioUrl);
+        
+        // Настройка lip-sync
         avatarCtrl.lipSyncWithAnalyser(analyser);
-        await audio.play();
+        
+        // Обработка завершения воспроизведения
+        setupAudioEndHandler(audio, (success) => {
+          // Останавливаем lip-sync анимацию
+          avatarCtrl.stopLipSync();
+          // Освобождаем ресурсы
+          cleanup();
+        });
+        
+        // Безопасное воспроизведение
+        await safePlay(audio);
       } catch (audioError) {
         console.error('Ошибка воспроизведения аудио:', audioError);
         showChatMessage('❌ Ошибка воспроизведения аудио', true);

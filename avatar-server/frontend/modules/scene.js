@@ -1,3 +1,4 @@
+// digital_avatar/avatar-server/frontend/modules/scene.js
 import * as THREE from 'three';
 import {
    GLTFLoader

@@ -1,4 +1,4 @@
-// modules/avatar.js
+// // digital_avatar/avatar-server/frontend/modules/avatar.js
 export class AvatarController {
   constructor(avatar, mixer, THREE) {
     this.avatar = avatar;
@@ -57,9 +57,23 @@ export class AvatarController {
     };
     step();
   }
+  
+  /**
+   * Останавливает lip-sync анимацию
+   */
+  stopLipSync() {
+    if (this._lipSyncRAF) {
+      cancelAnimationFrame(this._lipSyncRAF);
+      this._lipSyncRAF = null;
+      
+      // Сбрасываем анимацию губ
+      this.setMorph(this.morphs.mouthOpen, 0);
+    }
+  }
 
   lipSyncWithAnalyser(analyser) {
-    cancelAnimationFrame(this._lipSyncRAF);
+    // Сначала останавливаем предыдущую анимацию, если она есть
+    this.stopLipSync();
     const data = new Uint8Array(analyser.fftSize);
     const loop = () => {
       analyser.getByteTimeDomainData(data);
@@ -154,10 +168,10 @@ export class AvatarController {
       };
 
       this._pc.onicecandidate = (e) => {
-        if (e.candidate) {
-          this._ws.send(JSON.stringify({ candidate: e.candidate }));
-        }
-      };
+		if (e.candidate && this._ws && this._ws.readyState === WebSocket.OPEN) {
+		  this._ws.send(JSON.stringify({ candidate: e.candidate }));
+		}
+	  };
 
       // Создаём оффер и отправляем на сервер
       const offer = await this._pc.createOffer();
