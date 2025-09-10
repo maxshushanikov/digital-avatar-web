@@ -1,27 +1,27 @@
 /**
- * Модуль для работы с аудио: воспроизведение, анализ для lip-sync
- * 
- * Ключевые улучшения:
- * - Единый аудиоконтекст (предотвращает утечки памяти)
- * - Автоматическое возобновление контекста после первого клика
- * - Поддержка мобильных устройств
- * - Оптимизация для lip-sync анимации
- * - Корректная обработка ошибок
- */
+* Audio module: playback, analysis for lip-sync
+*
+* Key improvements:
+* - Single audio context (prevents memory leaks)
+* - Automatic context resumption after first click
+* - Mobile support
+* - Optimization for lip-sync animation
+* - Correct error handling
+*/
 
 let audioContext = null;
 let contextResumePromise = null;
 
 /**
- * Получает или инициализирует общий аудиоконтекст
- * @returns {AudioContext} Аудиоконтекст
- */
+* Gets or initializes the shared audio context
+* @returns {AudioContext} Audio context
+*/
 export function getAudioContext() {
   if (!audioContext) {
-    // Создаем аудиоконтекст
+    // Creates an audio context
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     
-    // Подготовка к возобновлению контекста после первого клика
+    // Prepare to resume context after first click
     contextResumePromise = new Promise((resolve) => {
       const resumeContext = () => {
         if (audioContext && audioContext.state === 'suspended') {
@@ -42,9 +42,9 @@ export function getAudioContext() {
 }
 
 /**
- * Убеждается, что аудиоконтекст возобновлен
- * @returns {Promise<void>}
- */
+* Chaks the audio context is resumed
+* @returns {Promise<void>}
+*/
 async function ensureContextResumed() {
   if (!audioContext) {
     getAudioContext();
@@ -56,37 +56,37 @@ async function ensureContextResumed() {
 }
 
 /**
- * Воспроизводит аудио и возвращает объект с аудиоэлементом и анализатором
- * @param {string} url - URL аудиофайла
- * @returns {Promise<{audio: HTMLAudioElement, analyser: AnalyserNode}>}
- */
+* Plays audio and returns an object with the audio element and analyzer
+* @param {string} url - URL of the audio file
+* @returns {Promise<{audio: HTMLAudioElement, analyzer: AnalyserNode}>}
+*/
 export async function playAudio(url) {
   try {
-    // Убедимся, что контекст возобновлен
+    // Checks if the context is resumed
     await ensureContextResumed();
     
-    // Создаем аудиоэлемент
+    // Creates an audio element
     const audio = new Audio();
     audio.crossOrigin = 'anonymous';
     audio.src = url;
     
-    // Получаем аудиоконтекст
+    // Gets audio context
     const ctx = getAudioContext();
     
-    // Настройка графа аудио
+    // Configures the audio graph
     const source = ctx.createMediaElementSource(audio);
     const analyser = ctx.createAnalyser();
     
-    // Оптимизация для мобильных устройств
+    // Optimized for mobile devices
     const fftSize = isMobile() ? 1024 : 2048;
     analyser.fftSize = fftSize;
     analyser.smoothingTimeConstant = 0.5;
     
-    // Подключаем узлы
+    // Connects the nodes
     source.connect(analyser);
     analyser.connect(ctx.destination);
     
-    // Возвращаем объект с аудиоэлементом и анализатором
+    // Returns an object with an audio element and an analyzer
     return {
       audio,
       analyser,
@@ -99,23 +99,23 @@ export async function playAudio(url) {
 }
 
 /**
- * Освобождает аудиоресурсы
- * @param {HTMLAudioElement} audio
- * @param {MediaElementAudioSourceNode} source
- * @param {AnalyserNode} analyser
- */
+* Frees audio resources
+* @param {HTMLAudioElement} audio
+* @param {MediaElementAudioSourceNode} source
+* @param {AnalyserNode} analyser
+*/
 function cleanupAudio(audio, source, analyser) {
   try {
-    // Останавливаем воспроизведение
+    // Stops playback
     if (!audio.paused) {
       audio.pause();
     }
     
-    // Отключаем узлы
+    // Disables nodes
     source.disconnect();
     analyser.disconnect();
     
-    // Очищаем источник
+    // Clears the source
     audio.src = '';
     audio.load();
   } catch (error) {
@@ -124,30 +124,28 @@ function cleanupAudio(audio, source, analyser) {
 }
 
 /**
- * Проверяет, является ли устройство мобильным
- * @returns {boolean}
- */
+* Checks if the device is mobile
+* @returns {boolean}
+*/
 function isMobile() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
 /**
- * Безопасно воспроизводит аудио с обработкой ошибок
- * @param {HTMLAudioElement} audio
- * @returns {Promise<void>}
- */
+* Plays audio with error handling
+* @param {HTMLAudioElement} audio
+* @returns {Promise<void>}
+*/
 export async function safePlay(audio) {
   try {
     await ensureContextResumed();
     
-    // Пытаемся воспроизвести
+    // Trying to reproduce
     await audio.play();
   } catch (error) {
     if (error.name === 'NotAllowedError') {
-      // Требуется взаимодействие пользователя
       throw new Error('Требуется взаимодействие с пользователем для запуска аудио');
     } else if (error.name === 'AbortError') {
-      // Загрузка прервана
       console.log('Загрузка аудио прервана');
     } else {
       console.error('Ошибка воспроизведения:', error);
@@ -157,10 +155,10 @@ export async function safePlay(audio) {
 }
 
 /**
- * Устанавливает обработчик для завершения аудио
- * @param {HTMLAudioElement} audio
- * @param {Function} onEnd
- */
+* Sets a handler for audio end
+* @param {HTMLAudioElement} audio
+* @param {Function} onEnd
+*/
 export function setupAudioEndHandler(audio, onEnd) {
   const cleanup = () => {
     audio.removeEventListener('ended', handleEnd);
