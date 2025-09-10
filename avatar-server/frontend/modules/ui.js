@@ -1,3 +1,4 @@
+// digital_avatar/avatar-server/frontend/modules/ui.js
 import { isMobile } from './utils.js';
 
 export function setupUI({ onSubmit, onMicText, onEmoji, onWebcamToggle, onCallToggle }) {
@@ -8,9 +9,33 @@ export function setupUI({ onSubmit, onMicText, onEmoji, onWebcamToggle, onCallTo
   const webcamBtn = document.getElementById('webcamBtn');
   const callBtn = document.getElementById('callBtn');
 
-  sendBtn.onclick = () => { if (input.value.trim()) { onSubmit(input.value.trim()); input.value=''; } };
+  // Функция для управления состоянием кнопок во время запроса
+  function setLoadingState(loading) {
+    sendBtn.disabled = loading;
+    micBtn.disabled = loading;
+    input.disabled = loading;
+    sendBtn.textContent = loading ? '⏳' : 'Отправить';
+  }
+
+  const handleSubmit = async () => {
+    if (input.value.trim()) {
+      setLoadingState(true);
+      try {
+        await onSubmit(input.value.trim());
+        input.value = '';
+      } catch (err) {
+        console.error('Ошибка при отправке:', err);
+      } finally {
+        setLoadingState(false);
+      }
+    }
+  };
+
+  sendBtn.onclick = handleSubmit;
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && input.value.trim()) { onSubmit(input.value.trim()); input.value=''; }
+    if (e.key === 'Enter' && input.value.trim()) {
+      handleSubmit();
+    }
   });
 
   emojiSelect.onchange = () => { onEmoji(emojiSelect.value); emojiSelect.value=''; };

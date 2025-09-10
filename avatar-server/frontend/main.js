@@ -1,6 +1,7 @@
+// digital_avatar/avatar-server/frontend/main.js
 import { initScene } from './modules/scene.js';
 import { setupUI } from './modules/ui.js';
-import { playAudio } from './modules/audio.js';
+import { playAudio, safePlay, setupAudioEndHandler } from './modules/audio.js';
 import { AvatarController } from './modules/avatar.js';
 import { isMobile } from './modules/utils.js';
 
@@ -54,22 +55,56 @@ async function sendMessage(text, sessionId, avatarCtrl) {
       body: JSON.stringify({
         session_id: sessionId,
         message: text,
-        system_prompt: 'Ты дружелюбный ассистент. Отвечай на русском.',
+        system_prompt: 'ТЫ ДОЛЖЕН ОТВЕЧАТЬ ТОЛЬКО НА РУССКОМ ЯЗЫКЕ! НИКОГДА не используй английские слова или фразы в ответах. Если тебя спрашивают на английском, ответь: "Извините, я могу отвечать только на русском языке". Твои ответы должны быть краткими и понятными. Отвечай только на русском языке, без исключений.',
         temperature: 0.6,
         model: 'llama3'
       })
     });
+
+    // Проверяем статус ответа
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errorText}`);
+    }
+
     const data = await res.json();
+    
+    // Проверяем, что ответ содержит текст
+    if (!data.text) {
+      throw new Error('Пустой ответ от сервера');
+    }
+    
     addMsg('assistant', data.text);
 
     if (data.audio_url) {
-      const { audio, analyser } = await playAudio(data.audio_url);
-      avatarCtrl.lipSyncWithAnalyser(analyser);
-      await audio.play();
+      try {
+        // Добавляем базовый URL для аудио, если нужно
+        const audioUrl = data.audio_url.startsWith('http') ? data.audio_url : `${window.location.origin}${data.audio_url}`;
+        
+        // Используем улучшенный playAudio
+        const { audio, analyser, cleanup } = await playAudio(audioUrl);
+        
+        // Настройка lip-sync
+        avatarCtrl.lipSyncWithAnalyser(analyser);
+        
+        // Обработка завершения воспроизведения
+        setupAudioEndHandler(audio, (success) => {
+          // Останавливаем lip-sync анимацию
+          avatarCtrl.stopLipSync();
+          // Освобождаем ресурсы
+          cleanup();
+        });
+        
+        // Безопасное воспроизведение
+        await safePlay(audio);
+      } catch (audioError) {
+        console.error('Ошибка воспроизведения аудио:', audioError);
+        showChatMessage('❌ Ошибка воспроизведения аудио', true);
+      }
     }
   } catch (err) {
     console.error('Ошибка при отправке сообщения:', err);
-    showChatMessage(`Ошибка отправки: ${err.message}`, true);
+    showChatMessage(`❌ Ошибка отправки: ${err.message}`, true);
   }
 }
 
