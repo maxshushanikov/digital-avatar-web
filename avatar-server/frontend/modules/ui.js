@@ -11,11 +11,12 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
   // Состояние для отслеживания активности
   const state = {
     sttActive: false,
+    sttInitialized: false,
+    sttError: null,
     webcamActive: false,
     callActive: false,
     callConnecting: false,
-    sttReady: false,
-    sttError: null
+    audioDevices: []
   };
 
   // Проверка, является ли текущий источник доверенным (HTTPS или localhost)
@@ -44,34 +45,82 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
     }
   };
 
+  // Получение списка доступных аудиоустройств
+  const getAudioDevices = async () => {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      return devices.filter(device => device.kind === 'audioinput');
+    } catch (err) {
+      console.error('Error getting audio devices:', err);
+      return [];
+    }
+  };
+
+  // Проверка, доступен ли микрофон
+  const isMicrophoneAvailable = async () => {
+    try {
+      // Попытка получить доступ к микрофону для проверки
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (err) {
+      return false;
+    }
+  };
+
   // Обновление текста кнопки микрофона
   const updateMicButton = () => {
-    if (!state.sttReady) {
-      micBtn.textContent = '🎙️ STT недоступен';
+    // Если STT не поддерживается или не инициализирован
+    if (!isSpeechRecognitionSupported() || !isSecureContext()) {
+      micBtn.textContent = '🎙️ STT unavailable';
       micBtn.disabled = true;
-      micBtn.title = state.sttError || 'Речь не поддерживается или не настроена';
+      
+      if (!isSecureContext()) {
+        micBtn.title = 'Web Speech API requires HTTPS (except localhost)';
+      } else {
+        micBtn.title = 'Speech Recognition API not supported by your browser';
+      }
+      
       return;
     }
     
+    // Если есть ошибка
+    if (state.sttError) {
+      micBtn.textContent = '🎙️ STT error';
+      micBtn.disabled = false;
+      micBtn.title = state.sttError;
+      return;
+    }
+    
+    // Если инициализация в процессе
+    if (!state.sttInitialized) {
+      micBtn.textContent = '🎙️ Initialize';
+      micBtn.disabled = false;
+      micBtn.title = 'Click to initialize speech recognition';
+      return;
+    }
+    
+    // Активное состояние
     micBtn.disabled = false;
     micBtn.title = '';
-    micBtn.textContent = state.sttActive ? '🛑 Стоп' : '🎙️ Говорить';
+    micBtn.textContent = state.sttActive ? '🛑 Stop' : '🎙️ Speak';
     micBtn.classList.toggle('active', state.sttActive);
   };
 
   // Обновление текста кнопки веб-камеры
   const updateWebcamButton = () => {
-    webcamBtn.textContent = state.webcamActive ? '📷 Выкл' : '📷 Веб-камера';
+    webcamBtn.textContent = state.webcamActive ? '📷 Off' : '📷 Webcam';
     webcamBtn.classList.toggle('active', state.webcamActive);
   };
 
   // Обновление текста кнопки звонка
   const updateCallButton = () => {
     if (state.callConnecting) {
-      callBtn.textContent = '📹 Подключение...';
+      callBtn.textContent = '📹 Connecting...';
       callBtn.disabled = true;
     } else {
-      callBtn.textContent = state.callActive ? '📹 Отключить' : '📹 Видеозвонок';
+      callBtn.textContent = state.callActive ? '📹 Disconnect' : '📹 Video Call';
       callBtn.disabled = false;
     }
     callBtn.classList.toggle('active', state.callActive);
@@ -80,9 +129,9 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
   // Функция для управления состоянием кнопок во время запроса
   function setLoadingState(loading) {
     sendBtn.disabled = loading;
-    micBtn.disabled = loading || !state.sttReady || state.callConnecting;
+    micBtn.disabled = loading || !state.sttInitialized || state.callConnecting;
     input.disabled = loading;
-    sendBtn.textContent = loading ? '⏳' : 'Отправить';
+    sendBtn.textContent = loading ? '⏳' : 'Send';
   }
 
   const handleSubmit = async () => {
@@ -92,7 +141,7 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
         await onSubmit(input.value.trim());
         input.value = '';
       } catch (err) {
-        console.error('Ошибка при отправке:', err);
+        console.error('Error submitting message:', err);
       } finally {
         setLoadingState(false);
       }
@@ -113,28 +162,39 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
     }
   };
 
-  // Инициализация STT с обработкой всех возможных ошибок
-  const initSpeechRecognition = () => {
+  // Инициализация STT при первом нажатии на кнопку
+  const initSpeechRecognition = async () => {
+    // Уже инициализировано
+    if (state.sttInitialized) return;
+    
     // Проверка условий безопасности
     if (!isSecureContext()) {
-      state.sttError = 'Web Speech API требует HTTPS (кроме localhost)';
-      state.sttReady = false;
+      state.sttError = 'Web Speech API requires HTTPS (except localhost)';
       updateMicButton();
       return;
     }
 
     // Проверка поддержки Web Speech API
     if (!isSpeechRecognitionSupported()) {
-      state.sttError = 'Web Speech API не поддерживается вашим браузером. Попробуйте Chrome или Edge.';
-      state.sttReady = false;
+      state.sttError = 'Web Speech API not supported by your browser. Try Chrome or Edge.';
       updateMicButton();
       return;
     }
 
     // Проверка поддержки русского языка
     if (!isRussianLanguageSupported()) {
-      state.sttError = 'Русский язык не поддерживается Web Speech API в вашем браузере';
-      state.sttReady = false;
+      state.sttError = 'Russian language not supported by Web Speech API in your browser';
+      updateMicButton();
+      return;
+    }
+
+    // Получаем список аудиоустройств
+    state.audioDevices = await getAudioDevices();
+    
+    // Проверяем доступность микрофона
+    const isAvailable = await isMicrophoneAvailable();
+    if (!isAvailable) {
+      state.sttError = 'Microphone is busy or not available. Close other apps using microphone.';
       updateMicButton();
       return;
     }
@@ -158,8 +218,7 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
     }
     
     if (!supportedLang) {
-      state.sttError = 'Русский язык не поддерживается Web Speech API';
-      state.sttReady = false;
+      state.sttError = 'Russian language not supported by Web Speech API';
       updateMicButton();
       return;
     }
@@ -167,7 +226,7 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
     recognition.lang = supportedLang;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
-    recognition.continuous = false; // Останавливаем после окончания речи
+    recognition.continuous = false;
 
     recognition.onresult = (e) => {
       const transcript = Array.from(e.results)
@@ -187,118 +246,60 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
       state.sttActive = false;
       updateMicButton();
       
-      // Специфичная обработка ошибки audio-capture
       if (e.error === 'audio-capture') {
-        // Проверяем, не занят ли микрофон
-        navigator.mediaDevices.enumerateDevices()
-          .then(devices => {
-            const audioInput = devices.filter(device => 
-              device.kind === 'audioinput' && device.deviceId
-            );
-            
-            if (audioInput.length === 0) {
-              state.sttError = 'Микрофон не обнаружен. Проверьте подключение микрофона.';
-            } else {
-              state.sttError = 'Микрофон занят другим приложением. Закройте другие приложения, использующие микрофон.';
-            }
-            
-            updateMicButton();
-          })
-          .catch(err => {
-            console.error('Ошибка при проверке устройств:', err);
-            state.sttError = 'Не удалось проверить состояние микрофона.';
-            updateMicButton();
-          });
+        state.sttError = 'Microphone is busy or not available. Close other apps using microphone.';
       } else if (e.error === 'not-allowed') {
-        state.sttError = 'Доступ к микрофону запрещен. Разрешите доступ в настройках браузера.';
-        updateMicButton();
+        state.sttError = 'Microphone access denied. Please allow access in browser settings.';
       } else if (e.error === 'service-not-allowed') {
-        state.sttError = 'Сервис распознавания речи недоступен. Проверьте настройки браузера.';
-        updateMicButton();
-      } else if (e.error === 'no-speech') {
-        console.log('Нет речи обнаружено');
-      } else if (e.error === 'aborted') {
-        console.log('Распознавание прервано');
+        state.sttError = 'Speech recognition service is unavailable.';
       }
+      
+      updateMicButton();
     };
 
     recognition.onend = () => {
       if (state.sttActive) {
         state.sttActive = false;
         updateMicButton();
-        
-        // Попытка перезапуска через короткое время
-        setTimeout(() => {
-          if (!state.callActive && !state.callConnecting && !state.sttActive) {
-            try {
-              recognition.start();
-            } catch (e) {
-              console.error('Ошибка повторного запуска:', e);
-            }
-          }
-        }, 500);
       }
     };
 
     // Успешная инициализация
-    state.sttReady = true;
+    state.sttInitialized = true;
     state.sttError = null;
     
-    // Проверяем доступ к микрофону
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(stream => {
-        // Закрываем поток, так как он нам нужен только для проверки
-        stream.getTracks().forEach(track => track.stop());
-        
-        // Устанавливаем обработчик клика
-        micBtn.onclick = () => {
-          if (!state.sttActive) {
-            state.sttActive = true;
-            updateMicButton();
-            
-            try {
-              recognition.start();
-            } catch (e) {
-              console.error('Ошибка запуска распознавания:', e);
-              state.sttActive = false;
-              state.sttError = `Ошибка запуска: ${e.message}`;
-              updateMicButton();
-            }
-          } else {
-            recognition.stop();
-          }
-        };
-        
-        updateMicButton();
-      })
-      .catch(err => {
-        console.error('Ошибка проверки микрофона:', err);
-        
-        if (err.name === 'NotAllowedError') {
-          state.sttError = 'Доступ к микрофону запрещен. Разрешите доступ в настройках браузера.';
-        } else if (err.name === 'NotFoundError' || 
-                   err.name === 'DevicesNotFoundError') {
-          state.sttError = 'Микрофон не обнаружен. Проверьте подключение микрофона.';
-        } else if (err.name === 'NotReadableError' || 
-                   err.name === 'TrackStartError') {
-          state.sttError = 'Микрофон занят другим приложением. Закройте другие приложения, использующие микрофон.';
-        } else if (err.name === 'OverconstrainedError' || 
-                   err.name === 'ConstraintNotSatisfiedError') {
-          state.sttError = 'Неподдерживаемые настройки микрофона.';
-        } else if (err.name === 'SecurityError' || 
-                   err.name === 'PermissionDeniedError') {
-          state.sttError = 'Безопасность не позволяет доступ к микрофону.';
-        } else {
-          state.sttError = `Неизвестная ошибка: ${err.name}`;
+    // Устанавливаем обработчик клика
+    micBtn.onclick = async () => {
+      if (!state.sttActive) {
+        // Проверяем доступность микрофона перед запросом
+        const isAvailable = await isMicrophoneAvailable();
+        if (!isAvailable) {
+          state.sttError = 'Microphone is busy. Close other apps using microphone.';
+          updateMicButton();
+          return;
         }
         
-        state.sttReady = false;
-        updateMicButton();
-      });
+        try {
+          state.sttActive = true;
+          updateMicButton();
+          
+          recognition.start();
+        } catch (e) {
+          console.error('Error starting recognition:', e);
+          state.sttActive = false;
+          state.sttError = `Error starting: ${e.message}`;
+          updateMicButton();
+        }
+      } else {
+        recognition.stop();
+      }
+    };
+    
+    updateMicButton();
   };
 
-  // Инициализация STT
-  initSpeechRecognition();
+  // Инициализируем STT при первом клике на кнопку микрофона
+  micBtn.onclick = initSpeechRecognition;
 
   // Обработка видеозвонка с защитой от двойных вызовов
   callBtn.onclick = async () => {
@@ -314,14 +315,14 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
       try {
         await onCallToggle(false);
       } catch (err) {
-        console.error('Ошибка отключения видеозвонка:', err);
-        state.callActive = true; // Возвращаем состояние
+        console.error('Video call disconnect error:', err);
+        state.callActive = true; // Restore state
       } finally {
         state.callConnecting = false;
         updateCallButton();
       }
     } else {
-      // Попытка подключения
+      // Attempt connection
       state.callActive = true;
       state.callConnecting = true;
       updateCallButton();
@@ -329,9 +330,9 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
       try {
         await onCallToggle(true);
       } catch (err) {
-        console.error('Ошибка видеозвонка:', err);
+        console.error('Video call error:', err);
         state.callActive = false;
-        alert('Не удалось установить видеозвонок.\n\nПроверьте консоль для подробностей.');
+        alert('Could not establish video call.\n\nCheck console for details.');
       } finally {
         state.callConnecting = false;
         updateCallButton();
@@ -339,6 +340,18 @@ export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
     }
   };
   
+  // Обработка веб-камеры
+  webcamBtn.onclick = async () => { 
+    if (state.callActive) {
+      alert('Cannot enable webcam during a call');
+      return;
+    }
+    
+    state.webcamActive = !state.webcamActive;
+    updateWebcamButton();
+    await onWebcamToggle(state.webcamActive); 
+  };
+
   // Инициализация состояния кнопок
   updateMicButton();
   updateWebcamButton();

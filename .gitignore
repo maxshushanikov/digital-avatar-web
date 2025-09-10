@@ -1,0 +1,5 @@
+# .gitignore
+# avatar-server/backend/.env
+# avatar-server/backend/.env.example
+data/chat.db
+tts-server/tts-cache/
