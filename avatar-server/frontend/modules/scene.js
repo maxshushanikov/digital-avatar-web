@@ -53,7 +53,7 @@ export async function initScene(canvas, glbPath) {
       fileExists = resp.ok;
       if (fileExists) {
          console.log(`✅ Модель найдена: ${glbPath}`);
-         showChatMessage(`✅ Модель найдена: ${glbPath}`);
+         //showChatMessage(`✅ Модель найдена: ${glbPath}`);
       } else {
          console.warn(`❌ Модель не найдена: ${glbPath} (HTTP ${resp.status})`);
          showChatMessage(`❌ Модель не найдена: ${glbPath} (HTTP ${resp.status})`, true);
@@ -101,7 +101,7 @@ export async function initScene(canvas, glbPath) {
          controls.update();
 
          console.log(`📏 Размер модели: ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`);
-         showChatMessage(`📏 Размер модели: ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`);
+         // showChatMessage(`📏 Размер модели: ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`);
 
          scene.add(avatar);
 

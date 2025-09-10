@@ -1,5 +1,10 @@
-.git
-*.pyc
-__pycache__
-venv
-.env
+# .dockerignore
+**/__pycache__/
+**/*.pyc
+venv/
+.git/
+node_modules/
+.dockerignore
+.gitignore
+*.env
+!avatar-server/backend/*.env
