@@ -264,12 +264,22 @@ manager = ConnectionManager()
 
 @app.websocket("/ws/{room_id}")
 async def ws_signaling(websocket: WebSocket, room_id: str):
+    print(f"Новое WebSocket соединение для комнаты {room_id}")
     await manager.connect(room_id, websocket)
     try:
         while True:
-            msg = await websocket.receive_json()
-            await manager.broadcast(room_id, msg, exclude=websocket)
+            try:
+                msg = await websocket.receive_json()
+                print(f"Получено сообщение от комнаты {room_id}: {msg}")
+                await manager.broadcast(room_id, msg, exclude=websocket)
+            except Exception as e:
+                print(f"Ошибка при обработке сообщения: {e}")
+                break
     except WebSocketDisconnect:
+        print(f"WebSocket отключен для комнаты {room_id}")
+        manager.disconnect(room_id, websocket)
+    except Exception as e:
+        print(f"Неожиданная ошибка WebSocket: {e}")
         manager.disconnect(room_id, websocket)
         
 @app.get("/.well-known/appspecific/com.chrome.devtools.json")
