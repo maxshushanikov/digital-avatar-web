@@ -1,3 +1,4 @@
+//digital_avatar/avatar_server/frontend/audio.js
 /**
 * Audio module: playback, analysis for lip-sync
 *
