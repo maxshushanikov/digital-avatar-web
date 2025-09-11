@@ -1,0 +1,15 @@
+import { atom, map } from 'nanostores';
+
+export const sessionState = atom('disconnected');
+
+export const chatState = map({
+  messages: [],
+  input: '',
+  isSending: false,
+});
+
+export const connectionState = map({
+  isWebcamActive: false,
+  isCallActive: false,
+  isCallConnecting: false,
+});
