@@ -1,5 +1,4 @@
 // digital_avatar/avatar-server/frontend/modules/ui.js
-
 export function setupUI({ onSubmit, onMicText, onWebcamToggle, onCallToggle }) {
   const input = document.getElementById('textInput');
   const sendBtn = document.getElementById('sendBtn');
