@@ -1,45 +1,40 @@
-# avatar-server/backend/core/database.py
-import sqlite3
-import os
-from pathlib import Path
+# digital_avatar/avatar-server/backend/core/database.py
+"""
+Модуль для работы с базой данных через SQLAlchemy (PostgreSQL)
+"""
+from typing import Iterator
 from contextlib import contextmanager
-from typing import Iterator, Any
-
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 from .config import settings
 
-# Создаем директорию для БД, если она не существует
-Path(settings.DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+# Создание движка подключения к PostgreSQL
+engine = create_engine(
+    settings.DB_PATH.replace("postgresql://", "postgresql+psycopg2://"),
+    echo=False  # Включите True для отладки SQL-запросов
+)
+
+# Создание фабрики сессий
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @contextmanager
-def get_db_connection() -> Iterator[sqlite3.Connection]:
-    """Контекстный менеджер для подключения к БД"""
-    conn = sqlite3.connect(settings.DB_PATH)
-    conn.row_factory = sqlite3.Row
+def get_db_connection() -> Iterator[Session]:
+    """
+    Контекстный менеджер для получения сессии SQLAlchemy.
+    Гарантирует закрытие сессии после использования.
+    """
+    db = SessionLocal()
     try:
-        yield conn
-        conn.commit()
+        yield db
     except Exception:
-        conn.rollback()
+        db.rollback()
         raise
     finally:
-        conn.close()
+        db.close()
 
 def init_db():
-    """Инициализация структуры БД"""
-    with get_db_connection() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS chat_history (
-                id TEXT PRIMARY KEY,
-                session_id TEXT NOT NULL,
-                role TEXT NOT NULL,
-                content TEXT NOT NULL,
-                ts REAL NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_session_id ON chat_history (session_id)
-        """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_ts ON chat_history (ts)
-        """)
-        conn.commit()
+    """
+    Инициализация базы данных — создаёт таблицы, если они ещё не существуют.
+    """
+    from models.db import Base
+    Base.metadata.create_all(bind=engine)

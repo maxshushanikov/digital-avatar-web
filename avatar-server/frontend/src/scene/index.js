@@ -1,1 +1,0 @@
-export { initScene } from './SceneManager.js';

@@ -1,50 +1,58 @@
+# digital_avatar/docker-compose.yml
 services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: avatar_db
+      POSTGRES_USER: avatar_user
+      POSTGRES_PASSWORD: avatar_pass
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+
+  ollama:
+    image: ollama/ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+  tts-server:
+    build: ./tts-server
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./tts-server/tts-cache:/app/tts-cache
+    restart: unless-stopped
+
   avatar-server:
     build:
-      context: .
-      dockerfile: avatar-server/backend/Dockerfile
-    container_name: avatar-server
+      context: .                    
+      dockerfile: 
+        Dockerfile
     ports:
-      - '8000:8000'
+      - "8000:8000"
     environment:
-      - 'OLLAMA_URL=http://ollama:11434'
-      - 'TTS_URL=http://tts-server:5002'
-      - ALLOWED_ORIGINS=*
-      - DB_PATH=/data/chat.db
+      - DB_PATH=postgresql://avatar_user:avatar_pass@db:5432/avatar_db
+      - OLLAMA_URL=http://ollama:11434
+      - TTS_URL=http://tts-server:5002
+      - ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+      - HISTORY_LIMIT=12
+      - FORCE_RUSSIAN=true
     volumes:
-      - './data:/data'
+      - ./data/audio:/app/data/audio
     depends_on:
+      - db
+      - redis
       - ollama
       - tts-server
-  tts-server:
-    build:
-      context: ./tts-server
-      dockerfile: Dockerfile
-    container_name: tts-server
-    ports:
-      - '5002:5002'
-    volumes:
-      - './tts-server/tts-cache:/app/tts-cache'
-  ollama:
-    image: 'ollama/ollama:latest'
-    container_name: ollama
-    ports:
-      - '11434:11434'
-    volumes:
-      - 'ollama:/root/.ollama'
-    entrypoint:
-      - /usr/bin/bash
-      - '-lc'
-      - ollama serve
-    healthcheck:
-      test:
-        - CMD
-        - curl
-        - '-f'
-        - 'http://localhost:11434/api/tags'
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+    restart: unless-stopped
+
 volumes:
-  ollama: null
+  ollama:
