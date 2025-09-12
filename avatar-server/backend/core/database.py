@@ -1,33 +1,33 @@
-# avatar-server/backend/core/database.py
 import sqlite3
 import os
+import aiosqlite
 from pathlib import Path
-from contextlib import contextmanager
-from typing import Iterator, Any
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Any, List, Dict
 
 from .config import settings
 
 # Создаем директорию для БД, если она не существует
 Path(settings.DB_PATH).parent.mkdir(parents=True, exist_ok=True)
 
-@contextmanager
-def get_db_connection() -> Iterator[sqlite3.Connection]:
-    """Контекстный менеджер для подключения к БД"""
-    conn = sqlite3.connect(settings.DB_PATH)
-    conn.row_factory = sqlite3.Row
+@asynccontextmanager
+async def get_db_connection() -> AsyncIterator[aiosqlite.Connection]:
+    """Асинхронный контекстный менеджер для подключения к БД"""
+    conn = await aiosqlite.connect(settings.DB_PATH)
+    conn.row_factory = aiosqlite.Row
     try:
         yield conn
-        conn.commit()
+        await conn.commit()
     except Exception:
-        conn.rollback()
+        await conn.rollback()
         raise
     finally:
-        conn.close()
+        await conn.close()
 
-def init_db():
+async def init_db():
     """Инициализация структуры БД"""
-    with get_db_connection() as conn:
-        conn.execute("""
+    async with get_db_connection() as conn:
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS chat_history (
                 id TEXT PRIMARY KEY,
                 session_id TEXT NOT NULL,
@@ -36,10 +36,19 @@ def init_db():
                 ts REAL NOT NULL
             )
         """)
-        conn.execute("""
+        await conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_session_id ON chat_history (session_id)
         """)
-        conn.execute("""
+        await conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_ts ON chat_history (ts)
         """)
-        conn.commit()
+        await conn.commit()
+
+async def check_db_health() -> bool:
+    """Проверка здоровья базы данных"""
+    try:
+        async with get_db_connection() as conn:
+            await conn.execute("SELECT 1")
+            return True
+    except Exception:
+        return False

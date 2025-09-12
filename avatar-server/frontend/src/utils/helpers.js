@@ -1,5 +1,5 @@
+//digital_avatar/avatar-server/frontend/src/utils/helpers.js
 // Вспомогательные функции
-
 export function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {

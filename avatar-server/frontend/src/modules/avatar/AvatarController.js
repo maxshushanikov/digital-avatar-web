@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/modules/avatar/AvatarController.js
 import { LipSyncManager } from './LipSyncManager.js';
 import { EmotionManager } from './EmotionManager.js';
 import { AnimationManager } from './AnimationManager.js';

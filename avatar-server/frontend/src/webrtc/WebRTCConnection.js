@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/webrtc/WebRTCConnection.js
 export class WebRTCConnection {
   constructor() {
     this.pc = null;

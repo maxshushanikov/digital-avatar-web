@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/scene/SceneManager.js
 export async function initScene(canvas, glbPath) {
   try {
     // Динамический импорт Three.js модулей

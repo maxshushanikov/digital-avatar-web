@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/modules/avatar/LipSyncManager.js
 export class LipSyncManager {
   constructor(avatarController) {
     this.controller = avatarController;

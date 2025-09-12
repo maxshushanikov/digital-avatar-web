@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/stores/avatar.js
 import { map } from 'nanostores';
 
 export const avatarState = map({

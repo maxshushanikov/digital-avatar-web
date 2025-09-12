@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/stores/session.js
 import { atom, map } from 'nanostores';
 
 export const sessionState = atom('disconnected');

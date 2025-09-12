@@ -1,10 +1,13 @@
-# avatar-server/backend/services/llm.py
 import re
 import httpx
 from typing import Optional, Dict, Any
+import logging
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.config import settings
 from models.chat import ChatMessage
+
+logger = logging.getLogger(__name__)
 
 def ensure_russian_response(text: str, user_message: str) -> str:
     """
@@ -35,6 +38,7 @@ def ensure_russian_response(text: str, user_message: str) -> str:
     # Если ответ уже на русском, возвращаем как есть
     return text
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 async def get_llm_response(
     message: str,
     history: list,
@@ -44,16 +48,6 @@ async def get_llm_response(
 ) -> str:
     """
     Получает ответ от LLM через Ollama
-    
-    Args:
-        message: Текст пользовательского сообщения
-        history: История чата
-        system_prompt: Системный промпт (опционально)
-        temperature: Параметр температуры
-        model: Модель для использования
-    
-    Returns:
-        Текст ответа от LLM
     """
     # Подготовка промпта
     messages = []
@@ -89,8 +83,20 @@ async def get_llm_response(
             return assistant_text
             
         except httpx.RequestError as e:
+            logger.error(f"Request error to Ollama: {e}")
             raise ConnectionError(f"Request error to Ollama: {str(e)}")
         except httpx.HTTPStatusError as e:
+            logger.error(f"Ollama HTTP error: {e}")
             raise RuntimeError(f"Ollama HTTP error: {str(e)}")
         except (KeyError, ValueError) as e:
+            logger.error(f"Invalid response format from Ollama: {e}")
             raise ValueError(f"Invalid response format from Ollama: {str(e)}")
+
+async def check_ollama_health() -> bool:
+    """Проверяет доступность Ollama"""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            response = await client.get(f"{settings.OLLAMA_URL}/api/tags")
+            return response.status_code == 200
+    except Exception:
+        return False

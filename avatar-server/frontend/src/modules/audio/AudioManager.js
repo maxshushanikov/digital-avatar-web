@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/modules/audio/AudioManager.js
 import { audioState } from '../../stores/audio.js';
 
 export class AudioManager {

@@ -1,13 +1,44 @@
-<!-- digital_avatar/avatar_server/frontend/index.html -->
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Digital Avatar</title>
-  <link rel="stylesheet" href="/style.css" />
-  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
-  <!-- Import Map for Three.js 0.160.0 -->
+  <!-- Подключаем CSS через link, а не через импорт в JS -->
+  <link rel="stylesheet" href="./src/styles/variables.css">
+  <link rel="stylesheet" href="./src/styles/main.css">
+  <link rel="icon" href="./src/assets/favicon.ico" type="image/x-icon">
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene"></canvas>
+    
+    <div class="ui">
+      <div class="controls">
+        <button id="micBtn">🎙️ Говорить</button>
+        <button id="callBtn">📹 Видеозвонок</button>
+        <button id="webcamBtn">📷 Камера</button>
+        <select id="emojiSelect">
+          <option value="">Эмодзи</option>
+          <option value="😊">😊</option>
+          <option value="😮">😮</option>
+          <option value="😡">😡</option>
+          <option value="😉">😉</option>
+          <option value="👍">👍</option>
+        </select>
+      </div>
+      
+      <div class="chat">
+        <div id="history"></div>
+        <div class="input">
+          <input id="textInput" placeholder="Введите сообщение...">
+          <button id="sendBtn">Отправить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Импорт карта для Three.js -->
   <script type="importmap">
   {
     "imports": {
@@ -16,38 +47,8 @@
     }
   }
   </script>
-</head>
-<body>
-  <div id="app">
-    <!-- Canvas for Three.js scene -->
-    <canvas id="scene"></canvas>
 
-    <!-- UI overlay -->
-    <div class="ui">
-      <div class="controls">
-        <button id="micBtn">🎙️ Speak</button>
-        <button id="callBtn">📹 Video Call</button>
-        <button id="webcamBtn">📷 Webcam</button>
-        <select id="emojiSelect">
-          <option value="">Emojis</option>
-          <option value="😊">😊</option>
-          <option value="😮">😮</option>
-          <option value="😡">😡</option>
-          <option value="😉">😉</option>
-          <option value="👍">👍</option>
-        </select>
-      </div>
-      <div class="chat">
-        <div id="history"></div>
-        <div class="input">
-          <input id="textInput" placeholder="Speak or type..." />
-          <button id="sendBtn">Send</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Main script -->
-  <script type="module" src="/main.js"></script>
+  <!-- Основной скрипт приложения -->
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>

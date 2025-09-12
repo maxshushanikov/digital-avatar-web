@@ -1,7 +1,7 @@
-# avatar-server/backend/core/config.py
 import os
 from pydantic_settings import BaseSettings
 from typing import List, Optional
+from functools import lru_cache
 
 class Settings(BaseSettings):
     # Сервисные URL
@@ -12,7 +12,11 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "*"
     
     # Путь к БД
-    DB_PATH: str = "./chat.db"
+    DB_PATH: str = "./data/chat.db"
+    
+    # Настройки сервера
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
     
     # Настройки модели
     DEFAULT_MODEL: str = "llama3"
@@ -33,15 +37,21 @@ class Settings(BaseSettings):
     Если ты не знаешь ответа на вопрос, так и скажи на русском языке.
     """
     
+    # Настройки WebRTC
+    STUN_SERVERS: List[str] = ["stun:stun.l.google.com:19302"]
+    TURN_SERVERS: List[str] = []
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
         extra = "allow"
 
-# Создаем экземпляр настроек
-settings = Settings()
+@lru_cache()
+def get_settings():
+    return Settings()
 
-# Для удобства получения списка разрешенных источников
+settings = get_settings()
+
 def get_allowed_origins() -> List[str]:
     if settings.ALLOWED_ORIGINS == "*":
         return ["*"]

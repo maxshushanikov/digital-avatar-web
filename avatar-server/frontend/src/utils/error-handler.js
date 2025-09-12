@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/utils/error-handler.js
 export class ErrorHandler {
   static setupGlobalHandlers() {
     window.addEventListener('error', this.handleError);

@@ -1,0 +1,53 @@
+<!-- digital_avatar/avatar_server/frontend/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Digital Avatar</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+  <!-- Import Map for Three.js 0.160.0 -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <!-- Canvas for Three.js scene -->
+    <canvas id="scene"></canvas>
+
+    <!-- UI overlay -->
+    <div class="ui">
+      <div class="controls">
+        <button id="micBtn">🎙️ Speak</button>
+        <button id="callBtn">📹 Video Call</button>
+        <button id="webcamBtn">📷 Webcam</button>
+        <select id="emojiSelect">
+          <option value="">Emojis</option>
+          <option value="😊">😊</option>
+          <option value="😮">😮</option>
+          <option value="😡">😡</option>
+          <option value="😉">😉</option>
+          <option value="👍">👍</option>
+        </select>
+      </div>
+      <div class="chat">
+        <div id="history"></div>
+        <div class="input">
+          <input id="textInput" placeholder="Speak or type..." />
+          <button id="sendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main script -->
+  <script type="module" src="/main.js"></script>
+</body>
+</html>

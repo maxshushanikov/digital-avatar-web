@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/components/UiControls/UiControls.js
 import { connectionState } from '../../stores/session.js';
 import { avatarState } from '../../stores/avatar.js';
 

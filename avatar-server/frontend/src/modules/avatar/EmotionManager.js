@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/modules/avatar/EmotionManager.js
 export class EmotionManager {
   constructor(avatarController) {
     this.controller = avatarController;

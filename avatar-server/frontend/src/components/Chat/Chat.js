@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/components/Chat/Chat.js
 import { chatState } from '../../stores/session.js';
 
 export function setupChat() {

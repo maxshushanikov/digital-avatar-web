@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/modules/avatar/AnimationManager.js
 export class AnimationManager {
   constructor(avatarController) {
     this.controller = avatarController;

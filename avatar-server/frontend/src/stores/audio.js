@@ -1,3 +1,4 @@
+//digital_avatar/avatar-server/frontend/src/stores/audio.js
 import { map } from 'nanostores';
 
 export const audioState = map({
