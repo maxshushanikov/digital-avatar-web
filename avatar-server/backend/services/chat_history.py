@@ -1,53 +1,42 @@
+# digital_avatar/avatar-server/backend/services/chat_history.py
+"""
+Сервис для работы с историей чата через SQLAlchemy
+"""
 import uuid
 import time
 from typing import List
-from datetime import datetime
-import aiosqlite
-
 from core.database import get_db_connection
 from models.chat import ChatMessage
+from models.db import ChatHistory
 
-async def save_message(session_id: str, role: str, content: str) -> str:
-    """Сохраняет сообщение в историю чата и возвращает ID сообщения"""
-    message_id = str(uuid.uuid4())
-    timestamp = time.time()
-    
-    async with get_db_connection() as conn:
-        await conn.execute(
-            "INSERT INTO chat_history (id, session_id, role, content, ts) VALUES (?,?,?,?,?)",
-            (message_id, session_id, role, content, timestamp)
+def save_message(session_id: str, role: str, content: str):
+    """Сохраняет сообщение в БД"""
+    with get_db_connection() as db:
+        record = ChatHistory(
+            id=str(uuid.uuid4()),
+            session_id=session_id,
+            role=role,
+            content=content,
+            ts=time.time()
         )
-        await conn.commit()
-    
-    return message_id
+        db.add(record)
+        db.commit()
 
-async def get_history(session_id: str, limit: int = 30) -> List[ChatMessage]:
-    """Получает историю чата для сессии"""
-    async with get_db_connection() as conn:
-        rows = await conn.execute_fetchall(
-            "SELECT id, role, content, ts FROM chat_history WHERE session_id=? ORDER BY ts DESC LIMIT ?",
-            (session_id, limit)
+def get_history(session_id: str, limit: int = 12) -> List[ChatMessage]:
+    with get_db_connection() as db:
+        records = (
+            db.query(ChatHistory)
+            .filter(ChatHistory.session_id == session_id)
+            .order_by(ChatHistory.ts.asc())
+            .limit(limit)
+            .all()
         )
-    
-    # Конвертируем в объекты ChatMessage
-    history = [
-        ChatMessage(
-            id=row["id"],
-            role=row["role"],
-            content=row["content"],
-            timestamp=row["ts"]
-        )
-        for row in rows
-    ]
-    
-    # Сортируем по времени (от старых к новым)
-    return sorted(history, key=lambda x: x.timestamp)
-
-async def clear_history(session_id: str):
-    """Очищает историю чата для сессии"""
-    async with get_db_connection() as conn:
-        await conn.execute(
-            "DELETE FROM chat_history WHERE session_id=?",
-            (session_id,)
-        )
-        await conn.commit()
+        return [
+            ChatMessage(
+                id=r.id or str(uuid.uuid4()),
+                role=r.role,
+                content=r.content,
+                timestamp=r.ts  # используем timestamp, а не ts
+            )
+            for r in records
+        ]

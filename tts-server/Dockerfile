@@ -1,4 +1,3 @@
-# digital_avatar/tts-server/Dockerfile
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y \
@@ -8,15 +7,21 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Предзагружаем модель Silero при сборке (теперь с omegaconf)
+# Предварительная загрузка модели при сборке
 RUN python -c "import torch; torch.hub.load('snakers4/silero-models', 'silero_tts', language='ru', speaker='ru_v3', trust_repo=True)"
 
 COPY server.py .
+
 RUN mkdir -p /app/tts-cache
 
-ENV PORT=5002 HOST=0.0.0.0
+ENV PORT=5002 \
+    HOST=0.0.0.0 \
+    TTS_CACHE_DIR=/app/tts-cache
+
 EXPOSE 5002
+
 CMD ["python", "server.py"]
