@@ -1,4 +1,13 @@
 # digital_avatar/avatar-server/backend/main.py
+# === 🔍 ДИАГНОСТИКА ЗАПУСКА ===
+import os
+import sys
+print("🚀 STARTUP: Digital Avatar Backend")
+print(f"📄 CWD: {os.getcwd()}")
+print(f"📦 Files in /app: {os.listdir('/app') if os.path.exists('/app') else 'Not found'}")
+print(f"🔍 PYTHONPATH: {sys.path}")
+# ==============================
+
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse

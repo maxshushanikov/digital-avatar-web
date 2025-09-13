@@ -11,7 +11,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Предварительная загрузка модели при сборке
+# Предзагрузка модели Silero при сборке
 RUN python -c "import torch; torch.hub.load('snakers4/silero-models', 'silero_tts', language='ru', speaker='ru_v3', trust_repo=True)"
 
 COPY server.py .
@@ -19,8 +19,7 @@ COPY server.py .
 RUN mkdir -p /app/tts-cache
 
 ENV PORT=5002 \
-    HOST=0.0.0.0 \
-    TTS_CACHE_DIR=/app/tts-cache
+    HOST=0.0.0.0
 
 EXPOSE 5002
 

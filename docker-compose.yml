@@ -1,58 +1,143 @@
-# digital_avatar/docker-compose.yml
 services:
+  # === PostgreSQL: Хранение истории чата ===
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
       POSTGRES_DB: avatar_db
       POSTGRES_USER: avatar_user
-      POSTGRES_PASSWORD: avatar_pass
+      POSTGRES_PASSWORD: ${DB_PASS:-avatar_pass}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d  # Для SQL-скриптов при первой инициализации
+    ports:
+      - "5432:5432"  # Только для отладки, в продакшене закрыть
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
 
+  # === Redis: Потенциально для кэширования LLM или управления сессиями ===
   redis:
     image: redis:7-alpine
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - backend
 
+  # === Ollama: LLM (Llama3) ===
   ollama:
-    image: ollama/ollama
+    image: ollama/ollama:latest
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_MAX_LOADED_MODELS=1
     ports:
       - "11434:11434"
     volumes:
       - ollama:/root/.ollama
+    deploy:
+      resources:
+        limits:
+          memory: 6G   # Критично для Llama3
+        reservations:
+          memory: 2G
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-check-certificate", "--quiet", "--spider", "http://localhost:11434"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - backend
 
+  # === TTS-сервер (Silero) ===
   tts-server:
     build: ./tts-server
     ports:
       - "5002:5002"
+    environment:
+      - PORT=5002
+      - HOST=0.0.0.0
+      - TTS_CACHE_DIR=/app/tts-cache
+      - TTS_SPEAKER=baya
     volumes:
       - ./tts-server/tts-cache:/app/tts-cache
+    depends_on:
+      - db
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - backend
 
+  # === Backend API + Frontend (FastAPI + Static files) ===
   avatar-server:
     build:
-      context: .                    
-      dockerfile: 
-        Dockerfile
+      context: .
+      dockerfile: avatar-server/backend/Dockerfile
     ports:
       - "8000:8000"
     environment:
-      - DB_PATH=postgresql://avatar_user:avatar_pass@db:5432/avatar_db
+      # Переменные окружения — можно переопределить через .env
+      - DB_PATH=postgresql://avatar_user:${DB_PASS:-avatar_pass}@db:5432/avatar_db
       - OLLAMA_URL=http://ollama:11434
       - TTS_URL=http://tts-server:5002
       - ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
       - HISTORY_LIMIT=12
       - FORCE_RUSSIAN=true
+      - DATA_DIR=/app/data
+      - AUDIO_CACHE_DIR=/app/data/audio
     volumes:
       - ./data/audio:/app/data/audio
+      - ./avatar-server/frontend:/app/frontend
+      - ./assets:/app/assets
     depends_on:
-      - db
-      - redis
-      - ollama
-      - tts-server
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      tts-server:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    networks:
+      - backend
 
+# === Внешние тома ===
 volumes:
   ollama:
+    # Хранит модели Ollama между перезапусками
+
+# === Сеть ===
+networks:
+  backend:
+    driver: bridge
+    name: digital_avatar_backend
