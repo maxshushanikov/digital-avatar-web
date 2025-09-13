@@ -1,3 +1,4 @@
+# digital_avatar/avatar-server/backend/models/db.py
 """
 ORM модели для SQLAlchemy
 """

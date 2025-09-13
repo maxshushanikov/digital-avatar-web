@@ -1,3 +1,4 @@
+# digital_avatar/docker-compose.yml
 services:
   # === PostgreSQL: Хранение истории чата ===
   db:
